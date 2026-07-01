@@ -25,6 +25,7 @@ end
 
 function Selector:onKey(btn,state)
 	if not self.selected then return end
+	if self.selected.locked then return end
 	if state then return end
 	
 	if getKeyState("lshift") then
@@ -69,6 +70,10 @@ function Selector:onKey(btn,state)
 		end
 	end
 	
+	if btn == "delete" then
+		deleteElement(self.selected)
+	end
+
 	-- if element.type == "LINE" then element:setUpResizePoints() end
 end
 
@@ -76,16 +81,22 @@ function Selector:onClick(btn,state,x,y)
 	if guied.customizing then return end
 	if btn ~= "left" then return end
 	if state ~= "down" then return end
-	for _,v in reverse_pairs(elementsID.tbl) do
-		self.selected = false
-		if v then
-			local isMouseIn = v.type == "CIRCLE" and isMouseInCircle(v.x,v.y,v.attributes[3].value) or ( v.type == "LINE" and isMouseInPosition(v.catchAreaX,v.catchAreaY,v.w,v.h) or isMouseInPosition(v.x,v.y,v.w,v.h))
-			if isMouseIn then
-				self.selected = v
-				break
-			end
+	if LayersPanel and LayersPanel:isMouseOver() then return end
+	
+	self.selected = false
+	
+	-- Top-most visible layer under the cursor wins.
+	elementsID:forEachHitOrder(function(v)
+		if not v.visible then return false end
+		
+		local isMouseIn = v.type == "CIRCLE" and isMouseInCircle(v.x,v.y,v.attributes[3].value) or ( v.type == "LINE" and isMouseInPosition(v.catchAreaX,v.catchAreaY,v.w,v.h) or isMouseInPosition(v.x,v.y,v.w,v.h))
+		if isMouseIn then
+			self.selected = v
+			return true
 		end
-	end
+		
+		return false
+	end)
 end
 
 guiSelector = Selector:new()

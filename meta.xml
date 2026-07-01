@@ -6,6 +6,7 @@
     <script src="utils.lua" type="client"/>
     <script src="client/cgui.lua" type="client"/>
     <script src="client/colorpicker/colorpicker.lua" type="client"/>
+    <script src="client/elements/registry.lua" type="client"/>
     <script src="client/elements/baseElement.lua" type="client"/>
     <script src="client/elements/rectangle.lua" type="client"/>
     <script src="client/elements/text.lua" type="client"/>
@@ -17,6 +18,7 @@
     <script src="client/contextmenu.lua" type="client"/>
     <script src="client/resizeanddrag.lua" type="client"/>
     <script src="client/main.lua" type="client"/>
+    <script src="client/layerspanel.lua" type="client"/>
     <script src="client/toolbar.lua" type="client"/>
     <script src="client/image_picker.lua" type="client"/>
     <script src="client/font_picker.lua" type="client"/>

@@ -36,6 +36,13 @@ function Toolbar:constructor()
 	self.outputH = self.toolbarSize
 	self.outputAlpha = 160
 	
+	self.layersBtnGap = scaleImage(10)
+	self.layersBtnX = self.outputX - self.toolbarSize - self.layersBtnGap
+	self.layersBtnY = self.toolbarY
+	self.layersBtnW = self.toolbarSize
+	self.layersBtnH = self.toolbarSize
+	self.layersBtnAlpha = 160
+	
 	addEventHandler("onClientRender",root,self.func.draw)
 	addEventHandler("onClientClick",root,self.func.onClick)
 	addEventHandler("onClientCursorMove",root,self.func.onHover)
@@ -56,7 +63,11 @@ function Toolbar:onHover()
 	self.outputAlpha = 160
 	if isMouseInPosition(self.outputX,self.outputY,self.outputW,self.outputH) then
 		self.outputAlpha = 200
-		return
+	end
+	
+	self.layersBtnAlpha = 160
+	if isMouseInPosition(self.layersBtnX,self.layersBtnY,self.layersBtnW,self.layersBtnH) then
+		self.layersBtnAlpha = 200
 	end
 
 	for k,v in pairs(self.toolbarOptions) do
@@ -116,20 +127,31 @@ function Toolbar:onClick(btn,state)
 		table.insert(lines,"\r\n")
 
 		table.insert(lines,"addEventHandler('onClientRender',root,function()\r\n")
-		for k,v in pairs(elementsID.tbl) do
-			table.insert(lines,"	"..v:output().."\r\n")
-		end
+		-- Output is generated bottom-to-top, matching the in-editor render
+		-- order. Hidden layers are skipped entirely.
+		elementsID:forEachRenderOrder(function(v)
+			if v.visible then
+				table.insert(lines,"\t"..v:output().."\r\n")
+			end
+		end)
 		table.insert(lines,"end)")
 		triggerServerEvent("guieditor:server_saveFile",root,lines)
 		return
 	end
 	
+	if isMouseInPosition(self.layersBtnX,self.layersBtnY,self.layersBtnW,self.layersBtnH) then
+		LayersPanel:toggle()
+		return
+	end
+	
 	for k,v in pairs(self.toolbarOptions) do
 		if isMouseInPosition(v.x,self.toolbarY,self.toolbarSize,self.toolbarSize) then
-			local class = v.shapeClass:new()
-			local id = elementsID:assignID(class)
-			class.id = id
-			elementsID.tbl[id].id = id
+			local element = v.shapeClass:new()
+			elementsID:assignID(element)
+			
+			-- Newly created shapes land on top and get selected straight
+			-- away so you can jump right into editing them.
+			guiSelector.selected = element
 			break
 		end
 	end
@@ -145,6 +167,16 @@ function Toolbar:draw()
 	
 	dxDrawRectangle(self.outputX,self.outputY,self.outputW,self.outputH,tocolor(0,0,0,self.outputAlpha))
 	dxDrawText("OUTPUT",self.outputX,self.outputY,self.outputX+self.outputW,self.outputY+self.outputH,white,1.5,"default-bold","center","center")
+	
+	-- Highlight the LAYERS button while the panel is open so it's obvious
+	-- it's a toggle.
+	local layersAlpha = self.layersBtnAlpha
+	if LayersPanel and LayersPanel.visible then
+		layersAlpha = 230
+	end
+	
+	dxDrawRectangle(self.layersBtnX,self.layersBtnY,self.layersBtnW,self.layersBtnH,tocolor(0,0,0,layersAlpha))
+	dxDrawText("LAYERS",self.layersBtnX,self.layersBtnY,self.layersBtnX+self.layersBtnW,self.layersBtnY+self.layersBtnH,white,1.5,"default-bold","center","center",false,true)
 end
 
 Toolbar:new()

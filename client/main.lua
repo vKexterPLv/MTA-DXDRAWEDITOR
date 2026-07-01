@@ -36,7 +36,12 @@ function GUIEditor:onKey(btn,state)
 		self.resizeMode = not self.resizeMode
 	end
 	
-	if guiSelector.selected and guiSelector.selected.rotation and btn == "r" then 
+	-- Locked layers ignore rotation/resize shortcuts so they can't
+	-- accidentally be tweaked while you're working on something else.
+	local selected = guiSelector.selected
+	local selectedIsLocked = selected and selected.locked
+	
+	if selected and selected.rotation and not selectedIsLocked and btn == "r" then 
 		if not state then
 			self.rotating = false
 		else
@@ -44,11 +49,11 @@ function GUIEditor:onKey(btn,state)
 		end
 	end
 
-	if guiSelector.selected and btn == "s" then 
+	if selected and not selectedIsLocked and btn == "s" then 
 		if not state then
 			self.sizingWithKey.bool = false
 		else
-			local element = guiSelector.selected
+			local element = selected
 			local distance = getDistanceBetweenMouseAndElement2D(element)
 			
 			self.sizingWithKey.startDistance = math.max(1,distance)
@@ -86,80 +91,34 @@ function GUIEditor:draw()
 		
 	end
 
-	if guiSelector.selected then
+	if guiSelector.selected and guiSelector.selected.visible then
 		local element = guiSelector.selected
 		local offset = scaleImage(5)
+		local highlightColor = element.locked and tocolor(230,150,0,200) or tocolor(0,100,0,200)
 		
 		if element.type ~= "CIRCLE" then
 			local x = element.type == "LINE" and element.catchAreaX or element.x
 			local y = element.type == "LINE" and element.catchAreaY or element.y
-			dxDrawRectangle(x-offset,y-offset,element.w+(offset*2),element.h+(offset*2),tocolor(0,100,0,200))
+			dxDrawRectangle(x-offset,y-offset,element.w+(offset*2),element.h+(offset*2),highlightColor)
 		else
 			local radius = element.attributes[3].value
 			local size = radius*2
-			dxDrawRectangle(element.x-radius,element.y-radius,size,size,tocolor(0,100,0,200))
+			dxDrawRectangle(element.x-radius,element.y-radius,size,size,highlightColor)
 		end
 	end
 	
-	-- Rysowanie elementow
-	for k,v in pairs(elementsID.tbl) do
+	-- Drawing elements, bottom layer first so later layers render on top
+	elementsID:forEachRenderOrder(function(v)
+		if not v.visible then return end
+		
 		v:draw()
 		
-		if self.resizeMode and v.type ~= "CIRCLE" then
+		if self.resizeMode and v.type ~= "CIRCLE" and not v.locked then
 			for _,v1 in pairs(v.resizePoints) do
 				dxDrawRectangle(v1.x,v1.y,v1.w,v1.h,tocolor(255,0,0))
 			end
 		end
-	end
+	end)
 end
 
-local IDSystem = {}
-IDSystem.__index = IDSystem
-
-function IDSystem:new()
-	local instance = {}
-	setmetatable(instance,IDSystem)
-	if instance:constructor() then
-		return instance
-	end
-	return false
-end
-function IDSystem:constructor()
-	self.tbl = {}
-	return true
-end
-
-function IDSystem:findFreeIndex()
-  local i = 1
-  while self.tbl[i] do
-      i = i + 1
-  end
-  return i
-end
-
-function IDSystem:assignID(element)
-  local index = self:findFreeIndex()
-  self.tbl[index] = element
-  return index
-end
-
-function IDSystem:separateID(index)
-     if self.tbl[index] then
-        self.tbl[index] = nil
-        return true
-    else
-        return false
-    end
-end
-
-function IDSystem:getID(index)
-     if self.tbl[index] then
-        return self.tbl[index]
-    else
-        return false
-    end
-end
-
-fontsID = IDSystem:new()
-elementsID = IDSystem:new()
 guied = GUIEditor:new()

@@ -28,7 +28,7 @@ end
 
 function ResizeAndDragModule:renderResizeHandling()
 	if guied.resizeMode then
-		if isCursorShowing() and self.resizing.bool and #elementsID.tbl >= 1 then
+		if isCursorShowing() and self.resizing.bool and elementsID:count() >= 1 then
 			local v = elementsID.tbl[self.resizing.id]
 			local cx,cy = getCursorPosition()
 			cx,cy = cx*scr.x,cy*scr.y
@@ -114,7 +114,7 @@ function ResizeAndDragModule:renderResizeHandling()
 		end
 	end
 
-	if isCursorShowing() and self.moving.bool and #elementsID.tbl >= 1 then
+	if isCursorShowing() and self.moving.bool and elementsID:count() >= 1 then
 		local v = elementsID.tbl[self.moving.id]
 		if v then
 			local cx,cy = getCursorPosition()
@@ -149,29 +149,34 @@ function ResizeAndDragModule:onClick(btn,state,x,y)
 	if guied.customizing then return end
 	if btn ~= "left" then return end
 	if state == "down" then 
-		for _,v in reverse_pairs(elementsID.tbl) do
-			if v then
-				if v.type ~= "CIRCLE" and guied.resizeMode then
-					for _,v1 in pairs(v.resizePoints) do
-						if isMouseInPosition(v1.x,v1.y,v1.w,v1.h) then
-							self.resizing.id = v.id
-							self.resizing.bool = true
-							self.resizing.corner = v1.corner			
-							break
-						end
-					end
-				else
-					local isMouseIn = v.type == "CIRCLE" and isMouseInCircle(v.x,v.y,v.attributes[3].value) or ( v.type == "LINE" and isMouseInPosition(v.catchAreaX,v.catchAreaY,v.w,v.h) or isMouseInPosition(v.x,v.y,v.w,v.h))	
-					if isMouseIn then
-						self.dragX = v.type == "LINE" and x-v.catchAreaX or x-v.x
-						self.dragY = v.type == "LINE" and y-v.catchAreaY or y-v.y
-						self.moving.id = v.id
-						self.moving.bool = true
-						break
+		if LayersPanel and LayersPanel:isMouseOver() then return end
+		
+		-- Top-most visible, unlocked layer under the cursor wins.
+		elementsID:forEachHitOrder(function(v)
+			if not v.visible or v.locked then return false end
+			
+			if v.type ~= "CIRCLE" and guied.resizeMode then
+				for _,v1 in pairs(v.resizePoints) do
+					if isMouseInPosition(v1.x,v1.y,v1.w,v1.h) then
+						self.resizing.id = v.id
+						self.resizing.bool = true
+						self.resizing.corner = v1.corner
+						return true
 					end
 				end
+			else
+				local isMouseIn = v.type == "CIRCLE" and isMouseInCircle(v.x,v.y,v.attributes[3].value) or ( v.type == "LINE" and isMouseInPosition(v.catchAreaX,v.catchAreaY,v.w,v.h) or isMouseInPosition(v.x,v.y,v.w,v.h))	
+				if isMouseIn then
+					self.dragX = v.type == "LINE" and x-v.catchAreaX or x-v.x
+					self.dragY = v.type == "LINE" and y-v.catchAreaY or y-v.y
+					self.moving.id = v.id
+					self.moving.bool = true
+					return true
+				end
 			end
-		end
+			
+			return false
+		end)
 	else
 		self.resizing.id = 0
 		self.resizing.bool = false

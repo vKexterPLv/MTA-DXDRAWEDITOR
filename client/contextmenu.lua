@@ -76,7 +76,6 @@ function ContextMenu:onClickContextSegment(btn,state,x,y)
 			local y = segmentV.y
 			if isMouseInPosition(x,y,w,h) then
 				local element = self.contextMenuElements[i]
-				iprint(element)
 				clickedOnSegment = true
 				
 				if element.action then
@@ -119,82 +118,116 @@ function ContextMenu:onClick(btn,state,x,y)
 	
 	self.row = 1
 	
-	for key,v in reverse_pairs(elementsID.tbl) do
-		self.contextMenuRevealed = false
-		local isMouseIn = v.type == "CIRCLE" and isMouseInCircle(v.x,v.y,v.attributes[3].value) or ( v.type == "LINE" and isMouseInPosition(v.catchAreaX,v.catchAreaY,v.w,v.h) or isMouseInPosition(v.x,v.y,v.w,v.h))	
-		if isMouseIn then
-			self.clickedOn = v
-			self.x,self.y = x,y
-			self:addSegment("OPTIONS AVAIBLE: "..v.type,0)
-			
-			for k,v1 in pairs(v.attributes) do
-				self:addSegment(v1.name,v1.value,v1.action or false)
-			end
-			
-			self:addSegment("Center X",0,function(self)
-				self.x = scr.x/2-self.w/2
-				if self.type ~= "CIRCLE" then
-					self:setUpResizePoints()
-				end
-			end)
-			
-			self:addSegment("Center Y",0,function(self)
-				self.y = scr.y/2-self.h/2
-				if self.type ~= "CIRCLE" then
-					self:setUpResizePoints()
-				end
-			end)
-			
-			self:addSegment("Snap to left",0,function(self)
-				self.x = 0
-				if self.type ~= "CIRCLE" then
-					self:setUpResizePoints()
-				end
-			end)
+	if LayersPanel and LayersPanel:isMouseOver() then return end
 	
-			self:addSegment("Snap to right",0,function(self)
-				self.x = scr.x-self.w
-				if self.type ~= "CIRCLE" then
-					self:setUpResizePoints()
-				end
-			end)
-			
-			self:addSegment("Snap to top",0,function(self)
-				self.y = 0
-				if self.type ~= "CIRCLE" then
-					self:setUpResizePoints()
-				end
-			end)
-			
-			self:addSegment("Snap to bottom",0,function(self)
-				self.y = scr.y-self.h
-				if self.type ~= "CIRCLE" then
-					self:setUpResizePoints()
-				end
-			end)
-			
-			self:addSegment("DELETE",0,function(self)
-				elementsID:separateID(self.id)
-				self:delete()
-			end)
-			
-			local totalHeight = 0
-			for i=1,self.maxRows do
-				local y = self.y+((i-1)*self.segmentH)
-				totalHeight = totalHeight + self.segmentH
-			end
-			
-			self:bundleSegments()
-			
-			if self.y+totalHeight > scr.y then
-				self.y = scr.y-totalHeight
-				self:bundleSegments()
-			end
-			
-			self.contextMenuRevealed = true
-			break
+	-- Top-most visible layer under the cursor gets the context menu.
+	elementsID:forEachHitOrder(function(v)
+		local isMouseIn = v.visible and (v.type == "CIRCLE" and isMouseInCircle(v.x,v.y,v.attributes[3].value) or ( v.type == "LINE" and isMouseInPosition(v.catchAreaX,v.catchAreaY,v.w,v.h) or isMouseInPosition(v.x,v.y,v.w,v.h)))	
+		if not isMouseIn then return false end
+		
+		self.clickedOn = v
+		self.x,self.y = x,y
+		self:addSegment("OPTIONS AVAIBLE: "..v.type,0)
+		
+		for k,v1 in pairs(v.attributes) do
+			self:addSegment(v1.name,v1.value,v1.action or false)
 		end
-	end
+		
+		self:addSegment("Rename layer",0,function(self)
+			local function setValue(value)
+				self.layerName = value
+			end
+			cgui:createCGUI(1,setValue)
+		end)
+		
+		self:addSegment("Visible",v.visible,function(self)
+			self.visible = not self.visible
+			if not self.visible and guiSelector.selected == self then
+				guiSelector.selected = false
+			end
+		end)
+		
+		self:addSegment("Locked",v.locked,function(self)
+			self.locked = not self.locked
+		end)
+		
+		self:addSegment("Bring to front",0,function(self)
+			elementsID:moveLayerToTop(self)
+		end)
+		
+		self:addSegment("Send to back",0,function(self)
+			elementsID:moveLayerToBottom(self)
+		end)
+		
+		self:addSegment("Move forward",0,function(self)
+			elementsID:moveLayerUp(self)
+		end)
+		
+		self:addSegment("Move backward",0,function(self)
+			elementsID:moveLayerDown(self)
+		end)
+		
+		self:addSegment("Center X",0,function(self)
+			self.x = scr.x/2-self.w/2
+			if self.type ~= "CIRCLE" then
+				self:setUpResizePoints()
+			end
+		end)
+		
+		self:addSegment("Center Y",0,function(self)
+			self.y = scr.y/2-self.h/2
+			if self.type ~= "CIRCLE" then
+				self:setUpResizePoints()
+			end
+		end)
+		
+		self:addSegment("Snap to left",0,function(self)
+			self.x = 0
+			if self.type ~= "CIRCLE" then
+				self:setUpResizePoints()
+			end
+		end)
+
+		self:addSegment("Snap to right",0,function(self)
+			self.x = scr.x-self.w
+			if self.type ~= "CIRCLE" then
+				self:setUpResizePoints()
+			end
+		end)
+		
+		self:addSegment("Snap to top",0,function(self)
+			self.y = 0
+			if self.type ~= "CIRCLE" then
+				self:setUpResizePoints()
+			end
+		end)
+		
+		self:addSegment("Snap to bottom",0,function(self)
+			self.y = scr.y-self.h
+			if self.type ~= "CIRCLE" then
+				self:setUpResizePoints()
+			end
+		end)
+		
+		self:addSegment("DELETE",0,function(self)
+			deleteElement(self)
+		end)
+		
+		local totalHeight = 0
+		for i=1,self.maxRows do
+			totalHeight = totalHeight + self.segmentH
+		end
+		
+		self:bundleSegments()
+		
+		if self.y+totalHeight > scr.y then
+			self.y = scr.y-totalHeight
+			self:bundleSegments()
+		end
+		
+		self.contextMenuRevealed = true
+		return true
+	end)
 end
 
 function ContextMenu:render()
